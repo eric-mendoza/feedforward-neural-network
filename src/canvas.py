@@ -1,10 +1,9 @@
-# Canvas
-#
-
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMenuBar, QMenu, QAction, QFileDialog
 from PyQt5.QtGui import QIcon, QImage, QPainter, QPen, QPixmap
 from PyQt5.QtCore import Qt, QPoint
 import sys
+import src.data_loader as loader
+import src.network as network
 
 
 #  Create the main window for the painter
@@ -25,15 +24,16 @@ class Window(QMainWindow):
         self.image.fill(Qt.white)
 
         self.drawing = False
-        self.brushSize = 80
+        self.brushSize = 60
         self.brushColor = Qt.black
         self.lastPoint = QPoint()
 
-        # Create main menu
+        # Create main menus
         main_menu = self.menuBar()
         file_menu = main_menu.addMenu("File")
         brush_menu = main_menu.addMenu("Brush Size")
         brush_color = main_menu.addMenu("Brush Color")
+        predict_menu = main_menu.addMenu("Predict")
 
         # Add options to 'File' menu
         save_action = QAction("Save", self)
@@ -68,6 +68,12 @@ class Window(QMainWindow):
         black_action.setShortcut("Ctrl+B")
         brush_color.addAction(black_action)
 
+        # Add options to 'Predict' menu
+        predict_action = QAction("Guess number", self)
+        predict_action.setShortcut("Ctrl+P")
+        predict_menu.addAction(predict_action)
+        predict_action.triggered.connect(self.guess)
+
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.drawing = True
@@ -100,8 +106,18 @@ class Window(QMainWindow):
         self.image.fill(Qt.white)
         self.update()
 
+    def guess(self):
+        pass
+
 
 if __name__ == '__main__':
+    # Load Data
+    train, cv, test = loader.load_data()
+
+    # Create neural network
+    net = network.Network([784, 30, 10])
+    net.sgd(train, 30, 10, 3.0, test)
+
     app = QApplication(sys.argv)
     window = Window()
     window.show()
