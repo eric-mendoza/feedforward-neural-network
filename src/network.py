@@ -23,8 +23,8 @@ class Network(object):
             for mini_batch in mini_batches:
                 self.update_mini_batch(mini_batch, eta)
 
-            print("Epoch {} : {} / {}".format(j, self.evaluate(test_data), n_test))
-
+            result = self.evaluate(test_data)
+            print("Batch %s: %s/%s (%s%%)" % (j + 1, result, n_test, int(result/n_test * 100)))
 
     def update_mini_batch(self, mini_batch, eta):
         # 1) Training Sample
@@ -89,6 +89,13 @@ class Network(object):
         test_results = [(np.argmax(self.feedforward(x)), np.argmax(y)) for (x, y) in test_data]
         correct_predictions = sum(int(x == y) for (x, y) in test_results)
         return correct_predictions
+
+    # This class will evaluate a drawing
+    def evaluate_drawing(self, drawing):
+        result = self.feedforward(drawing)
+        result_index = np.argmax(result)
+        percentage = result[result_index] * 100
+        return result_index, percentage
 
 
 # This function saves the weights and biases

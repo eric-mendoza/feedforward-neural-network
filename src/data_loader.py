@@ -1,12 +1,56 @@
-from PIL import Image
 import numpy as np
 import random
+from skimage import color
+from skimage import io
+import qimage2ndarray as converter
 
 
 # This function loads the data set (training, cv, test)
 def load_data_image():
-    im = Image.open("/Users/Hugo/green_leaves.jpg")
-    p = np.array(im)
+    img = 1 - color.rgb2gray(io.imread('../Generated/1.bmp'))
+    return img
+
+
+def qimage_to_ndarray(img):
+    image = converter.rgb_view(img)
+    image = 1 - color.rgb2gray(image)
+    image = np.reshape(image, (784, 1))
+    return image
+
+
+def image_classifier(i):
+    result = ""
+    if i == 0:
+        result = "Circle"
+
+    elif i == 1:
+        result = "Square"
+
+    elif i == 2:
+        result = "Triangle"
+
+    elif i == 3:
+        result = "Egg"
+
+    elif i == 4:
+        result = "Tree"
+
+    elif i == 5:
+        result = "House"
+
+    elif i == 6:
+        result = "Happy Face"
+
+    elif i == 7:
+        result = "Sad Face"
+
+    elif i == 8:
+        result = "Question"
+
+    elif i == 9:
+        result = "Mickey Mouse"
+
+    return result
 
 
 def load_data():
@@ -57,6 +101,9 @@ def load_data():
     results = np.concatenate((circle_result, square_result, triangle_result, tree_result, house_result, happy_result,
                               mickey_result))
 
+    # Convert image to black and white
+    inputs[:] = inputs[:] > 0
+
     join_data = zip(inputs, results)
     join_data = list(join_data)
 
@@ -76,3 +123,4 @@ def vectorized_result(j):
     e = np.zeros((10, 1))
     e[j] = 1.0
     return e
+

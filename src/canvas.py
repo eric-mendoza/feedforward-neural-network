@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMenuBar, QMenu, QAction, QFileDialog
+from PyQt5.QtWidgets import QApplication, QMainWindow, QMenuBar, QMenu, QAction, QFileDialog, QMessageBox
 from PyQt5.QtGui import QIcon, QImage, QPainter, QPen, QPixmap
 from PyQt5.QtCore import Qt, QPoint
 import sys
@@ -8,8 +8,11 @@ import src.network as network
 
 #  Create the main window for the painter
 class Window(QMainWindow):
-    def __init__(self):
+    def __init__(self, neural_network):
         super().__init__()
+
+        # Save the network for future predictions
+        self.network = neural_network
 
         # Set initial values for window
         top = 200
@@ -107,7 +110,12 @@ class Window(QMainWindow):
         self.update()
 
     def guess(self):
-        pass
+        # Obtener imagen
+        image = self.image.scaled(28, 28)  # Scale image
+        n = loader.qimage_to_ndarray(image)
+        drawing, percentage = self.network.evaluate_drawing(n)
+        message = ("I'm %s sure it's a %s!" % (percentage[0], loader.image_classifier(int(drawing))))
+        QMessageBox.about(self, "Result", message)
 
 
 if __name__ == '__main__':
@@ -116,9 +124,11 @@ if __name__ == '__main__':
 
     # Create neural network
     net = network.Network([784, 30, 10])
-    net.sgd(train, 30, 10, 3.0, test)
+
+    # training_data, epochs, mini_batch_size, eta, test_data
+    net.sgd(train, 10, 10, 3.0, test)
 
     app = QApplication(sys.argv)
-    window = Window()
+    window = Window(net)
     window.show()
     app.exec()
