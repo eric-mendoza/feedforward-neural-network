@@ -1,93 +1,126 @@
+# Feedforward neural network
+# Network based in book available in: http://neuralnetworksanddeeplearning.com/chap2.html
+
 import numpy as np
-import random
+import random as rnd
 
 
 class Network(object):
     # Constructor
-    def __init__(self, sizes):
-        self.num_layers = len(sizes)
-        self.sizes = sizes
-        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]  # Initialize randomly
-        self.weights = [np.random.randn(y, x) for x, y in zip(sizes[:-1], sizes[1:])]  # Initialize randomly
+    def __init__(self, layers):
+        # Basic parameters of Neural Network
+        self.layers = layers
+        self.biases = []
 
-    def sgd(self, training_data, epochs, mini_batch_size, eta, test_data):
-        training_data = list(training_data)
-        n = len(training_data)
-        test_data = list(test_data)
-        n_test = len(test_data)
+        # Create an array for the biases. Each index is a column vector with initial random numbers
+        for no_neurons in layers[1:]:
+            self.biases.append(np.random.randn(no_neurons, 1))
 
-        for j in range(epochs):
-            random.shuffle(training_data)
-            mini_batches = [training_data[k:k + mini_batch_size] for k in range(0, n, mini_batch_size)]
+        # Create an array for the weights. Each index is a
+        self.weights = []
+        for layer in range(len(layers) - 1):
+            self.weights.append(np.random.rand(layers[layer+1], layers[layer])/np.sqrt(layers[layer]))
 
-            for mini_batch in mini_batches:
-                self.update_mini_batch(mini_batch, eta)
+        print("Nice, Neural Network Created!")
 
-            result = self.evaluate(test_data)
-            print("Batch %s: %s/%s (%s%%)" % (j + 1, result, n_test, int(result/n_test * 100)))
+    # The training is going to be done with Stochastic Gradient Descend, which means we will use batches to do execute
+    # normal gradient descend.
+    def train(self, train, epochs, batch_size, learning_rate, test, test_train=False):
+        # Parse Zip object to list of tuples
+        train = list(train)
+        test = list(test)
 
-    def update_mini_batch(self, mini_batch, eta):
-        # 1) Training Sample
-        nabla_b = [np.zeros(b.shape) for b in self.biases]
-        nabla_w = [np.zeros(w.shape) for w in self.weights]
+        # Use the train data several times making sure to not overfit or underfit
+        print("Training is about to start.")
+        for epoch in range(epochs):
+            # Create batches for gradient descend
+            rnd.shuffle(train)  # Shuffle training data again
+            batches = []
+            for training_tuple in range(0, len(train), batch_size):
+                batches.append(train[training_tuple:training_tuple + batch_size])
 
-        # 2) Feed, error, back-propagation
-        for x, y in mini_batch:
-            delta_nabla_b, delta_nabla_w = self.backprop(x, y)
-            nabla_b = [nb + dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
-            nabla_w = [nw + dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
+            # This updates the weights and biases with the average of the derivatives obtained in the batches
+            for batch in batches:
+                self.gradient_descend(batch, learning_rate)
 
-        # 3) Gradient Descend
-        # Update weights
-        self.weights = [w - (eta / len(mini_batch)) * nw for w, nw in zip(self.weights, nabla_w)]
+            result = self.evaluate(test)
+            print("%s) Test: %s/%s (%s%%)" % (epoch + 1, result, len(test), int(result/len(test) * 100)))
+
+    def gradient_descend(self, batch, learning_rate):
+        nabla_b = []
+        for b in self.biases:
+            nabla_b.append(np.zeros(b.shape))
+        nabla_w = []
+        for w in self.weights:
+            nabla_w.append(np.zeros(w.shape))
+
+        # Feed, error, back-propagation
+        for image, result in batch:
+            # Backpropagation returns the delta
+            delta_nabla_b, delta_nabla_w = self.backpropagation(image, result)
+
+            # Calculate nabla_b sum
+            for i in range(len(delta_nabla_b)):
+                nabla_b[i] += delta_nabla_b[i]
+
+            # Calculate weight nabla sum
+            for i in range(len(delta_nabla_w)):
+                nabla_w[i] += delta_nabla_w[i]
+
+        # Update weights substracting the mean of nabla vectors. That's because we want to go down the hill
+        for i in range(len(nabla_w)):
+            self.weights[i] = self.weights[i] - (learning_rate * nabla_w[i]/len(batch))
 
         # Update biases
-        self.biases = [b - (eta / len(mini_batch)) * nb for b, nb in zip(self.biases, nabla_b)]
+        for i in range(len(nabla_b)):
+            self.biases[i] = self.biases[i] - (learning_rate * nabla_b[i]/len(batch))
 
-    def backprop(self, a, y):
-        nabla_b = [np.zeros(b.shape) for b in self.biases]
-        nabla_w = [np.zeros(w.shape) for w in self.weights]
+    def backpropagation(self, image, result):
+        delta_nabla_b = []
+        for b in self.biases:
+            delta_nabla_b.append(np.zeros(b.shape))
+        delta_nabla_w = []
+        for w in self.weights:
+            delta_nabla_w.append(np.zeros(w.shape))
 
         # 1) Input
-        activation = a
+        activation = image
 
         # 2) Feedforward
-        activations = [a]  # Activations per layer
+        activations = [image]  # Activations per layer
         zs = []  # Z-values per layer
-        for b, w in zip(self.biases, self.weights):
-            z = np.dot(w, activation) + b  # Compute Z-value
+        for i in range(len(self.biases)):
+            z = np.dot(self.weights[i], activation) + self.biases[i]  # Compute Z-value
             zs.append(z)  # Save Z
-
-            activation = sigmoid(z)  # Update layer activation
+            activation = sigmoid(z)  # Update layer activation for next layer
             activations.append(activation)  # Save next layer activation (a)
 
-        # 3) Cost Function
-        output_layer = activations[-1]
-        delta = cost_derivative(output_layer, y) * sigmoid_prime(zs[-1])  # Error in output
-        nabla_b[-1] = delta
-        nabla_w[-1] = np.dot(delta, activations[-2].transpose())
+        # 3) Cost Function Derivative
+        delta = cost_derivative(activations[-1], result) * sigmoid_prime(zs[-1])  # Eq 1: d = nablaC (.) sigma_prime
+        delta_nabla_b[-1] = delta  # Equation 3: dC/dB = delta
+        delta_nabla_w[-1] = np.dot(delta, activations[-2].transpose())  # Eq 4: delta * a
 
         # 4) Back-propagate the error
-        for l in range(2, self.num_layers):
-            z = zs[-l]
-            delta = np.dot(self.weights[-l + 1].transpose(), delta) * sigmoid_prime(z)  # Error based on next layer
-            nabla_b[-l] = delta
-            nabla_w[-l] = np.dot(delta, activations[-l - 1].transpose())
+        for l in range(2, len(self.layers)):
+            delta = np.dot(self.weights[-l + 1].transpose(), delta) * sigmoid_prime(zs[-l])  # Error based on next layer
+            delta_nabla_b[-l] = delta
+            delta_nabla_w[-l] = np.dot(delta, activations[-l - 1].transpose())
 
-        # 5) Gradient for neural network cost
-        return nabla_b, nabla_w
+        # 5) Return Gradient for neural network cost
+        return delta_nabla_b, delta_nabla_w
 
-    def feedforward(self, a):
+    def feedforward(self, image):
         # Feedforward input to classify
-        for b, w in zip(self.biases, self.weights):
-            a = sigmoid(np.dot(w, a) + b)
+        for i in range(len(self.biases)):
+            image = sigmoid(np.dot(self.weights[i], image) + self.biases[i])
 
         # Return last activation vector
-        return a
+        return image
 
     def evaluate(self, test_data):
-        test_results = [(np.argmax(self.feedforward(x)), np.argmax(y)) for (x, y) in test_data]
-        correct_predictions = sum(int(x == y) for (x, y) in test_results)
+        correct_predictions = 0
+        for image, expected in test_data:
+            correct_predictions += int(np.argmax(self.feedforward(image)) == np.argmax(expected))
         return correct_predictions
 
     # This class will evaluate a drawing

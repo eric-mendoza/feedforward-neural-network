@@ -27,7 +27,7 @@ class Window(QMainWindow):
         self.image.fill(Qt.white)
 
         self.drawing = False
-        self.brushSize = 60
+        self.brushSize = 50
         self.brushColor = Qt.black
         self.lastPoint = QPoint()
 
@@ -114,19 +114,19 @@ class Window(QMainWindow):
         image = self.image.scaled(28, 28)  # Scale image
         n = loader.qimage_to_ndarray(image)
         drawing, percentage = self.network.evaluate_drawing(n)
-        message = ("I'm %s sure it's a %s!" % (percentage[0], loader.image_classifier(int(drawing))))
+        message = ("I'm %s%% sure it's a %s!" % (int(percentage[0]), loader.image_classifier(int(drawing))))
         QMessageBox.about(self, "Result", message)
 
 
 if __name__ == '__main__':
     # Load Data
-    train, cv, test = loader.load_data()
+    train, cv, test = loader.load_data(9000)
 
     # Create neural network
     net = network.Network([784, 30, 10])
 
     # training_data, epochs, mini_batch_size, eta, test_data
-    net.sgd(train, 10, 10, 3.0, test)
+    net.train(train, 10, 10, 3, test)
 
     app = QApplication(sys.argv)
     window = Window(net)
