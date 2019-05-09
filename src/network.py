@@ -25,10 +25,11 @@ class Network(object):
 
     # The training is going to be done with Stochastic Gradient Descend, which means we will use batches to do execute
     # normal gradient descend.
-    def train(self, train, epochs, batch_size, learning_rate, test, test_train=False):
+    def train(self, train, test, cv, epochs, batch_size, learning_rate, lamb):
         # Parse Zip object to list of tuples
         train = list(train)
         test = list(test)
+        cv = list(cv)
 
         # Use the train data several times making sure to not overfit or underfit
         print("Training is about to start.")
@@ -41,12 +42,16 @@ class Network(object):
 
             # This updates the weights and biases with the average of the derivatives obtained in the batches
             for batch in batches:
-                self.gradient_descend(batch, learning_rate)
+                self.gradient_descend(batch, len(train), learning_rate, lamb)
 
             result = self.evaluate(test)
-            print("%s) Test: %s/%s (%s%%)" % (epoch + 1, result, len(test), int(result/len(test) * 100)))
+            print("%s) CV dataset: %s/%s (%s%%)" % (epoch + 1, result, len(test), int(result/len(test) * 100)))
 
-    def gradient_descend(self, batch, learning_rate):
+        print("Now let's use test data...")
+        result = self.evaluate(cv)
+        print("Test dataset: %s/%s (%s%%)" % (result, len(test), int(result / len(test) * 100)))
+
+    def gradient_descend(self, batch, train_size, learning_rate, lamb):
         nabla_b = []
         for b in self.biases:
             nabla_b.append(np.zeros(b.shape))
@@ -68,8 +73,8 @@ class Network(object):
                 nabla_w[i] += delta_nabla_w[i]
 
         # Update weights substracting the mean of nabla vectors. That's because we want to go down the hill
-        for i in range(len(nabla_w)):
-            self.weights[i] = self.weights[i] - (learning_rate * nabla_w[i]/len(batch))
+        for i in range(len(nabla_w)):  # We are using regularized weights
+            self.weights[i] = (1 - learning_rate * (lamb / train_size)) * self.weights[i] - (learning_rate * nabla_w[i] / len(batch))
 
         # Update biases
         for i in range(len(nabla_b)):
@@ -91,12 +96,14 @@ class Network(object):
         zs = []  # Z-values per layer
         for i in range(len(self.biases)):
             z = np.dot(self.weights[i], activation) + self.biases[i]  # Compute Z-value
+
+            # Save data
             zs.append(z)  # Save Z
             activation = sigmoid(z)  # Update layer activation for next layer
             activations.append(activation)  # Save next layer activation (a)
 
-        # 3) Cost Function Derivative
-        delta = cost_derivative(activations[-1], result) * sigmoid_prime(zs[-1])  # Eq 1: d = nablaC (.) sigma_prime
+        # 3) Cost Function Derivative Cross Entropy
+        delta = cost_derivative(activations[-1], result)  # Eq 1: d = nablaC (.) sigma_prime
         delta_nabla_b[-1] = delta  # Equation 3: dC/dB = delta
         delta_nabla_w[-1] = np.dot(delta, activations[-2].transpose())  # Eq 4: delta * a
 
@@ -109,6 +116,12 @@ class Network(object):
         # 5) Return Gradient for neural network cost
         return delta_nabla_b, delta_nabla_w
 
+    def evaluate(self, test_data):
+        correct_predictions = 0
+        for image, expected in test_data:
+            correct_predictions += int(np.argmax(self.feedforward(image)) == np.argmax(expected))
+        return correct_predictions
+
     def feedforward(self, image):
         # Feedforward input to classify
         for i in range(len(self.biases)):
@@ -116,12 +129,6 @@ class Network(object):
 
         # Return last activation vector
         return image
-
-    def evaluate(self, test_data):
-        correct_predictions = 0
-        for image, expected in test_data:
-            correct_predictions += int(np.argmax(self.feedforward(image)) == np.argmax(expected))
-        return correct_predictions
 
     # This class will evaluate a drawing
     def evaluate_drawing(self, drawing):

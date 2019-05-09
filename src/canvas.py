@@ -120,13 +120,13 @@ class Window(QMainWindow):
 
 if __name__ == '__main__':
     # Load Data
-    train, cv, test = loader.load_data(9000)
+    train, cv, test = loader.load_data(11000)
 
     # Create neural network
-    net = network.Network([784, 30, 10])
+    net = network.Network([784, 100, 10])
 
-    # training_data, epochs, mini_batch_size, eta, test_data
-    net.train(train, 10, 10, 3, test)
+    # training_data, test, cv epochs, batch_size, learning, lambda
+    net.train(train, test, cv, 8, 20, 0.4, 10)
 
     app = QApplication(sys.argv)
     window = Window(net)
